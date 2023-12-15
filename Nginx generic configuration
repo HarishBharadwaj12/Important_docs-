@@ -1,0 +1,62 @@
+# HTTP to HTTPS Redirect
+server {
+    listen 80;
+    server_name test.dummy.com;
+    return 301 https://test.dummy.com;
+}
+
+# HTTPS Server Block with Enhanced Security and Proxy Configuration
+server {
+    listen 443 ssl http2;
+    server_name test.dummy.com;
+    ssl_certificate /etc/letsencrypt/live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/privkey.pem;
+
+    # SSL/TLS Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
+    ssl_prefer_server_ciphers off;
+
+    # SSL Session Cache
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # OCSP Stapling
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    ssl_trusted_certificate /etc/letsencrypt/live/chain.pem;
+
+    # Location Block for Proxying with Enhanced Security Headers
+    location / {
+        # Enable HTTP Strict Transport Security (HSTS)
+        add_header Strict-Transport-Security "max-age=3600; includeSubDomains; preload";
+
+        # X-Frame-Options Header: Protect against clickjacking attacks
+        add_header X-Frame-Options DENY;
+
+        # X-Content-Type-Options Header: Mitigate MIME type confusion attacks
+        add_header X-Content-Type-Options nosniff;
+
+        # Content Security Policy (CSP)
+        add_header Content-Security-Policy "default-src 'self'";
+
+        # Referrer Policy
+        add_header Referrer-Policy "strict-origin-when-cross-origin";
+
+        # Proxy Configuration
+        proxy_pass http://127.0.0.1:3186;
+        proxy_redirect off;
+        proxy_set_header Connection keep-alive;
+        proxy_set_header Host $host;
+
+        # Rate Limiting
+        limit_req zone=one burst=10 nodelay;
+    }
+
+    # Custom Error Pages
+    error_page 500 502 503 504 /custom-error.html;
+    location = /custom-error.html {
+        root /path/to/error/pages;
+        internal;
+    }
+}
